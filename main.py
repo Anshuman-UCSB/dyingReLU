@@ -2,10 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import networkx as nx
+import matplotlib.pyplot as plt
 
-# Fixing the random seed
-torch.manual_seed(42)
-
+# Define the model
 class SimpleNet(nn.Module):
     def __init__(self):
         super(SimpleNet, self).__init__()
@@ -19,14 +19,15 @@ class SimpleNet(nn.Module):
         x = self.fc3(x)          
         return x
 
-# Define the model
 model = SimpleNet()
 print(model)
 
+# Fixing the random seed
+torch.manual_seed(42)
 
 # Generate dataset
-X = torch.randint(-10, 10, (10, 2)).float()
-Y = (X.sum(axis=1) >= 0).float().unsqueeze(1)
+X = torch.randint(-10, 10, (20, 2)).float()
+Y = (X.sum(axis=1) > 0).float().unsqueeze(1)
 
 # Define loss function and optimizer
 criterion = nn.BCEWithLogitsLoss()
@@ -44,56 +45,26 @@ for epoch in range(num_epochs):
     loss.backward()
     optimizer.step()
     
-    print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}')
+    if (epoch+1) % 1 == 0:
+        print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}')
 
 # Print final model parameters
-# print("Final model parameters:")
-# for param in model.parameters():
-#     print(param)
+print("Final model parameters:")
+for param in model.parameters():
+    print(param)
 
-import matplotlib.pyplot as plt
-import networkx as nx
-
-# Define the layer sizes
-input_neurons = 2
-hidden_neurons = 3
-hidden2_neurons = 3
-output_neurons = 1
-
-# Create a graph object
+# Create a graph
 G = nx.DiGraph()
 
+# Define nodes
+input_nodes = ['x1', 'x2']
+hidden1_nodes = ['h1_1', 'h1_2', 'h1_3']
+hidden2_nodes = ['h2_1', 'h2_2', 'h2_3']
+output_nodes = ['y']
+bias_nodes = ['b1', 'b2', 'b3']
+
 # Add nodes to the graph
-input_nodes = ['Input' + str(i + 1) for i in range(input_neurons)]
-hidden1_nodes = ['h1' + str(i + 1) for i in range(hidden_neurons)]
-hidden2_nodes = ['h2' + str(i + 1) for i in range(hidden2_neurons)]
-output_nodes = ['Output' + str(i + 1) for i in range(output_neurons)]
-
-all_nodes = input_nodes + hidden1_nodes + hidden2_nodes + output_nodes
-
-for node in all_nodes:
-    G.add_node(node)
-
-# Define edges and weights (dummy values)
-edges = []
-
-# Input to Hidden edges
-for i in input_nodes:
-    for h in hidden1_nodes:
-        edges.append((i, h))
-
-# Input to Hidden edges
-for h1 in hidden1_nodes:
-    for h2 in hidden2_nodes:
-        edges.append((h1, h2))
-
-# Hidden to Output edges
-for h in hidden2_nodes:
-    for o in output_nodes:
-        edges.append((h, o))
-
-# Add edges to the graph
-G.add_edges_from(edges)
+G.add_nodes_from(input_nodes + hidden1_nodes + hidden2_nodes + output_nodes + bias_nodes)
 
 # Define positions for better visualization
 pos = {}
@@ -113,14 +84,20 @@ for i, node in enumerate(hidden2_nodes):
 for i, node in enumerate(output_nodes):
     pos[node] = (3, i * layer_gap + layer_gap)
 
+# Position bias nodes
+for i, node in enumerate(bias_nodes):
+    pos[node] = (.5+i, layer_gap*2.5)
+
 # Draw the nodes
 nx.draw_networkx_nodes(G, pos, nodelist=input_nodes, node_color="green", node_size=100, label="Input Layer")
-nx.draw_networkx_nodes(G, pos, nodelist=hidden1_nodes , node_color="red", node_size=100, label="h1 Layer")
-nx.draw_networkx_nodes(G, pos, nodelist=hidden2_nodes , node_color="red", node_size=100, label="h2 Layer")
+nx.draw_networkx_nodes(G, pos, nodelist=hidden1_nodes, node_color="red", node_size=100, label="h1 Layer")
+nx.draw_networkx_nodes(G, pos, nodelist=hidden2_nodes, node_color="red", node_size=100, label="h2 Layer")
 nx.draw_networkx_nodes(G, pos, nodelist=output_nodes, node_color="blue", node_size=100, label="Output Layer")
+nx.draw_networkx_nodes(G, pos, nodelist=bias_nodes, node_color="yellow", node_size=100, label="Bias Nodes")
 
-# Extract weights from the model
+# Extract weights and biases from the model
 weights = {}
+biases = {}
 for name, param in model.named_parameters():
     if 'weight' in name:
         layer = name.split('.')[0]
@@ -136,13 +113,27 @@ for name, param in model.named_parameters():
             for i, hidden2_node in enumerate(hidden2_nodes):
                 for j, output_node in enumerate(output_nodes):
                     weights[(hidden2_node, output_node)] = param[j, i].item()
+    elif 'bias' in name:
+        layer = name.split('.')[0]
+        if layer == 'fc1':
+            for j, hidden1_node in enumerate(hidden1_nodes):
+                biases[(bias_nodes[0], hidden1_node)] = param[j].item()
+        elif layer == 'fc2':
+            for j, hidden2_node in enumerate(hidden2_nodes):
+                biases[(bias_nodes[1], hidden2_node)] = param[j].item()
+        elif layer == 'fc3':
+            for j, output_node in enumerate(output_nodes):
+                biases[(bias_nodes[2], output_node)] = param[j].item()
 
 # Draw the edges
 nx.draw_networkx_edges(G, pos, edgelist=weights.keys())
+nx.draw_networkx_edges(G, pos, edgelist=biases.keys(), edge_color='yellow')
 
-# Add edge labels with weights
+# Add edge labels with weights and biases
 edge_labels = {(u, v): f'{w:.2f}' for (u, v), w in weights.items()}
+bias_labels = {(u, v): f'{b:.2f}' for (u, v), b in biases.items()}
 nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, label_pos=.2)
+nx.draw_networkx_edge_labels(G, pos, edge_labels=bias_labels, label_pos=.4)
 
 # Show the plot
-plt.savefig('graph.png')
+plt.savefig('network.png')

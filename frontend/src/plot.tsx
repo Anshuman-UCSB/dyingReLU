@@ -1,4 +1,5 @@
 import { DefaultNode, Graph } from "@visx/network";
+import { Text } from "@visx/text";
 
 export type NetworkProps = {
   width: number;
@@ -8,8 +9,8 @@ export type NetworkProps = {
 interface CustomNode {
   x: number;
   y: number;
-  size?: number;
   type: string;
+  bias?: number;
 }
 interface CustomLink {
   source: CustomNode;
@@ -44,6 +45,7 @@ export default function Plot({ width, height }: NetworkProps) {
       x: scaleX(20),
       y: calculateY(inputSize, i),
       type: "input",
+      bias: Math.random() * 2 - 1,
     })
   );
 
@@ -54,6 +56,7 @@ export default function Plot({ width, height }: NetworkProps) {
         x: scaleX(20 + (layerIndex + 1) * layerOffset),
         y: calculateY(hiddenSize, i),
         type: "hidden",
+        bias: Math.random() * 2 - 1,
       }))
   );
 
@@ -63,6 +66,7 @@ export default function Plot({ width, height }: NetworkProps) {
       x: scaleX(20 + 3 * layerOffset),
       y: calculateY(outputSize, i),
       type: "output",
+      bias: Math.random() * 2 - 1,
     })
   );
 
@@ -77,7 +81,7 @@ export default function Plot({ width, height }: NetworkProps) {
       nodesHidden[0].map((hiddenNode) => ({
         source: inputNode,
         target: hiddenNode,
-        weight: Math.random() * 2 - 1, // Random weight between -1 and 1
+        weight: Math.random() * 2 - 1,
       }))
     ),
     ...nodesHidden[0].flatMap((hiddenNode1) =>
@@ -100,6 +104,7 @@ export default function Plot({ width, height }: NetworkProps) {
     nodes,
     links,
   };
+
   return width < 10 ? null : (
     <svg width={width} height={height}>
       <rect width={width} height={height} fill={background} />
@@ -107,21 +112,47 @@ export default function Plot({ width, height }: NetworkProps) {
         graph={graph}
         top={0}
         left={0}
-        nodeComponent={({ node: { type, size = nodeSize } }) => (
-          <DefaultNode r={size} fill={typeColors[type]} />
+        nodeComponent={({ node: { type, bias } }) => (
+          <>
+            <DefaultNode r={nodeSize} fill={typeColors[type]} />
+            <Text
+              x={-width * 0.03}
+              y={-height * 0.01}
+              textAnchor="end"
+              fontSize={nodeSize * 0.8}
+              fill="#333"
+            >
+              {bias && (bias >= 0 ? "+" : "") + bias.toFixed(2)}
+            </Text>
+          </>
         )}
         linkComponent={({ link: { source, target, weight } }) => (
-          <line
-            x1={source.x}
-            y1={source.y}
-            x2={target.x}
-            y2={target.y}
-            strokeWidth={Math.abs(weight) * 6}
-            stroke={`rgb(
+          <>
+            <line
+              x1={source.x}
+              y1={source.y}
+              x2={target.x}
+              y2={target.y}
+              strokeWidth={Math.abs(weight) * 6}
+              stroke={`rgb(
               ${Math.max(0, -weight * 256)}, 
               ${Math.max(0, weight * 256)}, 
               0)`}
-          />
+            />
+            <Text
+              x={source.x + (target.x - source.x) * 0.25}
+              y={source.y + (target.y - source.y) * 0.25}
+              textAnchor="middle"
+              fontSize={nodeSize * 0.5}
+              fill="#333"
+              fontWeight="bold"
+              stroke="#fff"
+              strokeWidth={2}
+              paintOrder="stroke"
+            >
+              {weight.toFixed(2)}
+            </Text>
+          </>
         )}
       />
     </svg>

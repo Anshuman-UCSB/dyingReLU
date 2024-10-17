@@ -11,6 +11,7 @@ interface CustomNode {
   y: number;
   type: string;
   bias?: number;
+  value?: number;
 }
 interface CustomLink {
   source: CustomNode;
@@ -18,8 +19,8 @@ interface CustomLink {
   weight: number;
 }
 
-export const background = "#FFFFFF";
-export const typeColors: Record<string, string> = {
+const background = "#FFFFFF";
+const typeColors: Record<string, string> = {
   input: "red",
   hidden: "blue",
   output: "green",
@@ -45,7 +46,6 @@ export default function Plot({ width, height }: NetworkProps) {
       x: scaleX(20),
       y: calculateY(inputSize, i),
       type: "input",
-      bias: Math.random() * 2 - 1,
     })
   );
 
@@ -67,6 +67,7 @@ export default function Plot({ width, height }: NetworkProps) {
       y: calculateY(outputSize, i),
       type: "output",
       bias: Math.random() * 2 - 1,
+      value: 4,
     })
   );
 
@@ -106,55 +107,90 @@ export default function Plot({ width, height }: NetworkProps) {
   };
 
   return width < 10 ? null : (
-    <svg width={width} height={height}>
-      <rect width={width} height={height} fill={background} />
-      <Graph<CustomLink, CustomNode>
-        graph={graph}
-        top={0}
-        left={0}
-        nodeComponent={({ node: { type, bias } }) => (
-          <>
-            <DefaultNode r={nodeSize} fill={typeColors[type]} />
-            <Text
-              x={-width * 0.03}
-              y={-height * 0.01}
-              textAnchor="end"
-              fontSize={nodeSize * 0.8}
-              fill="#333"
-            >
-              {bias && (bias >= 0 ? "+" : "") + bias.toFixed(2)}
-            </Text>
-          </>
-        )}
-        linkComponent={({ link: { source, target, weight } }) => (
-          <>
-            <line
-              x1={source.x}
-              y1={source.y}
-              x2={target.x}
-              y2={target.y}
-              strokeWidth={Math.abs(weight) * 6}
-              stroke={`rgb(
-              ${Math.max(0, -weight * 256)}, 
-              ${Math.max(0, weight * 256)}, 
-              0)`}
-            />
-            <Text
-              x={source.x + (target.x - source.x) * 0.25}
-              y={source.y + (target.y - source.y) * 0.25}
-              textAnchor="middle"
-              fontSize={nodeSize * 0.5}
-              fill="#333"
-              fontWeight="bold"
-              stroke="#fff"
-              strokeWidth={2}
-              paintOrder="stroke"
-            >
-              {weight.toFixed(2)}
-            </Text>
-          </>
-        )}
-      />
-    </svg>
+    <>
+      <svg width={width} height={height}>
+        <rect width={width} height={height} fill={background} />
+        <Graph<CustomLink, CustomNode>
+          graph={graph}
+          top={0}
+          left={0}
+          nodeComponent={({ node: { type, bias, value } }) => (
+            <>
+              {type === "input" && (
+                <foreignObject
+                  x={-width * 0.15}
+                  y={-height * 0.02}
+                  width={width * 0.1}
+                  height={height * 0.04}
+                >
+                  <input
+                    type="range"
+                    min="-10"
+                    max="10"
+                    step="0.01"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      padding: "2px",
+                    }}
+                  />
+                </foreignObject>
+              )}
+              <DefaultNode r={nodeSize} fill={typeColors[type]} />
+              {value && (
+                <Text
+                  x={0}
+                  y={0}
+                  textAnchor="middle"
+                  verticalAnchor="middle"
+                  fontSize={nodeSize * 0.8}
+                  fill="#FFF"
+                >
+                  {value.toFixed(2)}
+                </Text>
+              )}
+
+              <Text
+                x={-width * 0.03}
+                y={-height * 0.01}
+                textAnchor="end"
+                fontSize={nodeSize * 0.8}
+                fill="#333"
+              >
+                {bias && (bias >= 0 ? "+" : "") + bias.toFixed(2)}
+              </Text>
+            </>
+          )}
+          linkComponent={({ link: { source, target, weight } }) => (
+            <>
+              <line
+                x1={source.x}
+                y1={source.y}
+                x2={target.x}
+                y2={target.y}
+                strokeWidth={Math.max(0.5, Math.abs(weight) * 6)}
+                stroke={`rgb(
+              ${Math.max(5, -weight * 256)}, 
+              ${Math.max(5, weight * 256)}, 
+              5)`}
+              />
+              <Text
+                x={source.x + (target.x - source.x) * 0.25}
+                y={source.y + (target.y - source.y) * 0.25}
+                textAnchor="middle"
+                fontSize={nodeSize * 0.5}
+                fill="#333"
+                fontWeight="bold"
+                stroke="#fff"
+                strokeWidth={2}
+                paintOrder="stroke"
+              >
+                {(weight >= 0 ? "+" : "") + weight.toFixed(2)}
+              </Text>
+            </>
+          )}
+        />
+      </svg>
+    </>
   );
 }
